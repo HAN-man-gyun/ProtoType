@@ -2,21 +2,24 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using System;
-using Unity.VisualScripting;
 
 public class Dikstra : MonoBehaviour
 {
-    private Transform player; // 플레이어의 위치
+    public Transform player; // 플레이어의 위치
     public LayerMask unwalkableMask; // 이동할 수 없는 영역의 레이어 마스크
     public int cellSize = 0;
     public Vector3 originPosition;
     private GameObject[,] gridTextures;
     private GameObject[,] playerMoveTextures;
-    Node[,] grid; // 그리드
+    public Node[,] grid; // 그리드
     List<Node> path; // 최단 경로
     private GameObject gridRootTextures;
     private GameObject MoveTexture;
     public int movingCount;
+
+
+    public bool isMoveReady;
+    
 
     public bool playerMoving = false;
     private void Start()
@@ -24,6 +27,7 @@ public class Dikstra : MonoBehaviour
         InitDikstra(15, 15, 4, Vector3.zero, "Obstacles");
         SetGrid();
     }
+
     public void InitDikstra(int x,int z,int cellSize, Vector3 originPosition, string layerName)
     {
         this.cellSize = cellSize;
@@ -33,6 +37,7 @@ public class Dikstra : MonoBehaviour
         gridTextures = new GameObject[x, z];
         playerMoveTextures = new GameObject[x,z];
     }
+
     public void FindPath(Vector3 startPos, Vector3 targetPos)
     {
         if (Mathf.FloorToInt((targetPos - originPosition).x / cellSize)>= grid.GetLength(0) ||
@@ -317,6 +322,8 @@ public class Dikstra : MonoBehaviour
         }
         playerMoving = false;
 
+        if(movingCount<= 0)
+            isMoveReady = false;
         //이동을 끝낸 후 다시 범위표시 그리드를 True로 만들어주는 함수.
         PlayerGrid();
     }
