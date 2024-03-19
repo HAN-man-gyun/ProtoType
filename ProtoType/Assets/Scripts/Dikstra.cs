@@ -7,7 +7,7 @@ public class Dikstra : MonoBehaviour
 {
     public Transform player; // 플레이어의 위치
     public LayerMask unwalkableMask; // 이동할 수 없는 영역의 레이어 마스크
-    public int cellSize = 0;
+    public int cellSize;
     public Vector3 originPosition;
     private GameObject[,] gridTextures;
     private GameObject[,] playerMoveTextures;
@@ -18,16 +18,19 @@ public class Dikstra : MonoBehaviour
     public int movingCount;
 
 
-    public bool isMoveReady;
-    
 
-    public bool playerMoving = false;
+
+    public bool isMoveReady; // 버튼을 클릭했는지 여부확인하는변수.
+    
+    public Transform movePlayer; //한 플레이어가 움직이면 다른 플레이어는 못움직이게 하기위한변수.
+    public bool playerMoving = false; // 플레이어의 이동중임을 체크하기위한 변수, coroutine이 여러번실행되는것을 방지
     private void Start()
     {
         InitDikstra(15, 15, 4, Vector3.zero, "Obstacles");
         SetGrid();
     }
 
+    // Dikstra 그리드 초기화하는 함수
     public void InitDikstra(int x,int z,int cellSize, Vector3 originPosition, string layerName)
     {
         this.cellSize = cellSize;
@@ -38,6 +41,7 @@ public class Dikstra : MonoBehaviour
         playerMoveTextures = new GameObject[x,z];
     }
 
+    // 최단거리 구하는 함수.
     public void FindPath(Vector3 startPos, Vector3 targetPos)
     {
         if (Mathf.FloorToInt((targetPos - originPosition).x / cellSize)>= grid.GetLength(0) ||
@@ -111,27 +115,29 @@ public class Dikstra : MonoBehaviour
             }
         }
     }
+    //최단거리를 구해서. 텍스쳐를 입히는 함수.
     void RetracePath(Node startNode, Node endNode)
     {
         //먼저 전에있던 그리드 텍스쳐들을 False함.
         MakeGridTextureFalse();
+        //무빙카운트가 더이상 없다면 리턴.
         if (movingCount <= 0)
         {
             return;
         }
+
         List<Node> path = new List<Node>();
         Node currentNode = endNode;
-
         while (currentNode != startNode)
         {
             path.Add(currentNode);
             currentNode = currentNode.parent;
-            //gridTextures[currentNode.gridX,currentNode.gridY].SetActive(true);
         }
-
-        
         path.Reverse();
-        for(int i=0; i< Mathf.Min(movingCount, path.Count); i++)
+        this.path = path;
+
+
+        for (int i=0; i< Mathf.Min(movingCount, path.Count); i++)
         {
             gridTextures[path[i].gridX, path[i].gridY].SetActive(true);
         }
@@ -144,11 +150,9 @@ public class Dikstra : MonoBehaviour
             gridTextures[endNode.gridX, endNode.gridY].SetActive(true);
         }
         
-        this.path = path;
-        
-        //MovePlayer();
     }
 
+    // 최단거리 계산에서 오픈리스트를 가져오는 함수.
     List<Node> GetNeighbors(Node node)
     {
         /*
@@ -197,13 +201,15 @@ public class Dikstra : MonoBehaviour
         return neighbors;
     }
 
-    Node GetNodeFromWorldPoint(Vector3 worldPosition)
+    // 월드포지션에서 노드[,]를 가져오는함수
+    public Node GetNodeFromWorldPoint(Vector3 worldPosition)
     {
         int x = Mathf.FloorToInt((worldPosition - originPosition).x / cellSize);
         int y = Mathf.FloorToInt((worldPosition - originPosition).z / cellSize);
         return grid[y, x];
     }
 
+    // 노드에서 월드 포지션을 가져오는 함수.
     public Vector3 GetWorldPosition (int x, int z)
     {
         return new Vector3(x, 0, z) * cellSize + originPosition;
@@ -252,9 +258,12 @@ public class Dikstra : MonoBehaviour
         Debug.DrawLine(GetWorldPosition(0, grid.GetLength(1)), GetWorldPosition(grid.GetLength(0), grid.GetLength(1)), Color.blue, 100f); ;
         Debug.DrawLine(GetWorldPosition(grid.GetLength(0), 0), GetWorldPosition(grid.GetLength(0), grid.GetLength(1)), Color.blue, 100f);
     }
+
+    #region 텍스쳐 함수
     // 그리드 텍스쳐를 입히는 함수
     public void SetGridTexture(int i, int j, int cellSize)
     {
+        //예상경로 텍스쳐
         Texture2D prefab = Resources.Load<Texture2D>("grid");
         GameObject gridTexture = new GameObject("girdTexture");
         SpriteRenderer renderer = gridTexture.AddComponent<SpriteRenderer>();
@@ -279,6 +288,7 @@ public class Dikstra : MonoBehaviour
         moveTexture.SetActive(false);
     }
 
+    // 예상경로 텍스쳐를 초기화 하는함수
     public void MakeGridTextureFalse()
     {
         for (int i = 0; i< gridTextures.GetLength(0); i++)
@@ -289,11 +299,28 @@ public class Dikstra : MonoBehaviour
             }
         }
     }
+    // 플레이어 이동범위 텍스쳐를 초기화 하는함수
+    public void MakeFalsePlayerGrid()
+    {
+        for (int i = 0; i < grid.GetLength(0); i++)
+        {
+            for (int j = 0; j < grid.GetLength(1); j++)
+            {
+                playerMoveTextures[i, j].SetActive(false); // 범위 내에 있다면 값을 설정
+            }
+        }
+    }
+    #endregion 텍스쳐 함수
+
+    #region 플레이어관련함수.
     //플레이어를 셋하는 함수
     public void SetPlayer(Transform player, int movingCount)
     {
         this.player = player;
-        this.movingCount = movingCount;
+        if (movePlayer == null)
+        {
+            this.movingCount = movingCount;
+        }
     }
     //플레이어가 움직이는 함수
     public IEnumerator MovePlayer(List<Node> path, int cellSize)
@@ -329,9 +356,11 @@ public class Dikstra : MonoBehaviour
     }
     public void MovePlayer()
     {
-        if (playerMoving == false)
+        if (playerMoving == false && (movePlayer == null ||movePlayer.name == player.name))
         {
             StartCoroutine(MovePlayer(path, cellSize));
+
+            movePlayer = player;
         }
     }
 
@@ -357,8 +386,8 @@ public class Dikstra : MonoBehaviour
         }
         */
 
-//사각형인경우
-int minX = Mathf.Max(0, x - movingCount);
+        //사각형인경우
+        int minX = Mathf.Max(0, x - movingCount);
         int maxX = Mathf.Min(grid.GetLength(0) - 1, x + movingCount);
         int minY = Mathf.Max(0, y - movingCount);
         int maxY = Mathf.Min(grid.GetLength(1) - 1, y + movingCount);
@@ -371,17 +400,7 @@ int minX = Mathf.Max(0, x - movingCount);
             }
         }
     }
-
-    public void MakeFalsePlayerGrid()
-    {
-        for (int i = 0; i < grid.GetLength(0); i++)
-        {
-            for (int j = 0; j < grid.GetLength(1); j++)
-            {
-                playerMoveTextures[i, j].SetActive(false); // 범위 내에 있다면 값을 설정
-            }
-        }
-    }
+    #endregion 플레이어 관련함수
 }
 
 
@@ -395,7 +414,6 @@ public class Node
     public int gCost; // 시작 노드로부터의 거리
     public Node parent; // 경로 추적을 위한 부모 노드
 
-
     // 노드 생성자
     public Node(bool _walkable, Vector3 _worldPos, int _gridX, int _gridY)
     {
@@ -404,6 +422,4 @@ public class Node
         gridX = _gridX;
         gridY = _gridY;
     }
-
-   
 }

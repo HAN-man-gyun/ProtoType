@@ -21,10 +21,10 @@ public class BattleSystem : MonoBehaviour
         }
     }
 
-    BattleFSM fsm;
+    public BattleFSM fsm;
     State _curState;
     public Dikstra dikstra;
-
+    //public List<>
     public enum State
     {
         start, playerTurn, enemyTurn, end

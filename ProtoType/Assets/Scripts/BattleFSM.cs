@@ -13,7 +13,6 @@ public class BattleFSM
         _myTurnState = new BattleMyTurnState(system);
         _curState = _startState;
         ChangeState(_curState);
-
    }
 
     public BattleBaseState _curState;

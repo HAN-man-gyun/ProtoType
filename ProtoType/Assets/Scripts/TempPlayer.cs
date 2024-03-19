@@ -1,16 +1,33 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
+
 
 public class TempPlayer : MonoBehaviour
 {
-    int movingCount;
-
+    Dikstra dikstra;
+    Mouse mouse;
     public void Start()
     {
-        movingCount = 10;
+
+        mouse = FindFirstObjectByType<Mouse>();
     }
 
-       
+    private void OnMouseDown()
+    {
+
+    }
+
+    private void OnMouseUp()
+    {
+        dikstra = BattleSystem.BattleSystem1.dikstra;
+        if (BattleSystem.BattleSystem1.fsm._curState == BattleSystem.BattleSystem1.fsm._startState)
+        {
+            Vector3 mousePos = dikstra.GetNodeFromWorldPoint(mouse.hitPoint).worldPosition; //mouse.hitPoint
+            transform.position = new Vector3(mousePos.x + dikstra.cellSize / 2, mousePos.y, mousePos.z + dikstra.cellSize / 2);
+        }
+    }
+
+    private void OnMouseDrag()
+    {
+
+    }
 }
