@@ -45,8 +45,6 @@ public class Grid
         }
         Debug.DrawLine(GetWorldPosition(0, width), GetWorldPosition(height, width), Color.blue, 100f); ;
         Debug.DrawLine(GetWorldPosition(height, 0), GetWorldPosition(height, width), Color.blue, 100f);
-        //1,2 배열에 있는 값에 56을 넣음.
-        SetValue(2, 1, 56);
     }
 
     #region 텍스트 객체 생성 메서드

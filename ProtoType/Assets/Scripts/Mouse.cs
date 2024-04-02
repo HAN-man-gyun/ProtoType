@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,12 +9,15 @@ public class Mouse : MonoBehaviour
     
     Dikstra dikstra;
 
-    int movingCount;
     int x, y;
     int cellSize;
     int lastx, lasty;
 
     public Vector3 hitPoint;
+
+    bool isAttackReady1;
+    bool isAttackReady2;
+    bool isAttackReady3;
 
     bool outOfGrid;
     // Start is called before the first frame update
@@ -21,7 +25,6 @@ public class Mouse : MonoBehaviour
     {
         
         dikstra = FindFirstObjectByType<Dikstra>();
-        movingCount = 10;
         cellSize = dikstra.cellSize;
         outOfGrid = false;
     }
@@ -29,6 +32,7 @@ public class Mouse : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        Debug.Log(BattleSystem.BattleSystem1.state);
         RaycastHit hit;
         if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit))
         {
@@ -54,17 +58,75 @@ public class Mouse : MonoBehaviour
                 BattleSystem.BattleSystem1.dikstra.MakeFalsePlayerGrid();
                 BattleSystem.BattleSystem1.dikstra.MakeGridTextureFalse();
                 BattleSystem.BattleSystem1.dikstra.isMoveReady = false;
-                BattleSystem.BattleSystem1.dikstra.SetPlayer(hit.collider.gameObject.transform, movingCount);
+                
+                organism player = hit.collider.gameObject.GetComponent<organism>();
+                int movingCount = player.movingCount;
+                int weaponRange = player.weapon.skillRange;
+                BattleSystem.BattleSystem1.dikstra.SetPlayer(hit.collider.gameObject.transform, movingCount,weaponRange);
             }
           
-            if (hitTag == "Floor" && outOfGrid == false&& BattleSystem.BattleSystem1.dikstra.playerMoving == false)
+            if (hitTag == "Floor" && outOfGrid == false&& BattleSystem.BattleSystem1.dikstra.playerMoving == false && BattleSystem.BattleSystem1.dikstra.isMoveReady == true )
             {
-                BattleSystem.BattleSystem1.fsm.ChangeState(BattleSystem.BattleSystem1.fsm._myTurnState);
+                BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
+                BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
                 BattleSystem.BattleSystem1.dikstra.MovePlayer();
+            }
+
+            if (isAttackReady1 && hitTag == "Enemy"&& BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isNormalAttack == false)
+            {
+                Debug.Log("실행");
+                organism organism = BattleSystem.BattleSystem1.dikstra.player.GetComponent<organism>();
+                organism.NormalAttack();
+                BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
+                BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
+                BattleSystem.BattleSystem1.isNormalAttack = true;
+            }
+
+            if (isAttackReady2 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position))
+            {
+                organism organism = BattleSystem.BattleSystem1.dikstra.player.GetComponent<organism>();
+                organism.SkillAttack1();
+                BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
+                BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
+            }
+
+            if(isAttackReady3 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position))
+            {
+                organism organism = BattleSystem.BattleSystem1.dikstra.player.GetComponent<organism>();
+                organism.SkillAttack2();
+                BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
+                BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
             }
         }
     }
 
+    public void MakeChTurnToPlTurn()
+    {
+        BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
+        
+    }
+    public void MakeReadyNormal()
+    {
+        BattleSystem.BattleSystem1.state = BattleSystem.State.chooseTurn;
+        BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.chooseTurn);
+        isAttackReady1 = true;
+        BattleSystem.BattleSystem1.dikstra.ActiveRangeTexture();
+    }
+    public void MakeReadySkill1()
+    {
+        BattleSystem.BattleSystem1.state = BattleSystem.State.chooseTurn;
+        BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.chooseTurn);
+        isAttackReady2 = true;
+        BattleSystem.BattleSystem1.dikstra.ActiveRangeTexture();
+    }
+
+    public void MakeReadySkill2()
+    {
+        BattleSystem.BattleSystem1.state = BattleSystem.State.chooseTurn;
+        BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.chooseTurn);
+        isAttackReady3 = true;
+        BattleSystem.BattleSystem1.dikstra.ActiveRangeTexture();
+    }
     public void CanMove()
     {
         Debug.Log(BattleSystem.BattleSystem1.dikstra.player.name);
@@ -74,12 +136,13 @@ public class Mouse : MonoBehaviour
         }
     } 
 
-    public void EndTurn()
+    public void PlayerEndTurn()
     {
         BattleSystem.BattleSystem1.dikstra.player = null;
         BattleSystem.BattleSystem1.dikstra.movingCount = 0;
         BattleSystem.BattleSystem1.dikstra.isMoveReady = false; // 버튼을 클릭했는지 여부확인하는변수.
         BattleSystem.BattleSystem1.dikstra.movePlayer = null;
+        BattleSystem.BattleSystem1.isNormalAttack = false;
     }
     public void CheckMouseInGrid(Vector3 mousePos)
     {

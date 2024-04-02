@@ -2,6 +2,9 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Collections;
 using System;
+using Unity.VisualScripting;
+using static UnityEditor.Experimental.GraphView.GraphView;
+using UnityEditor.Experimental.GraphView;
 
 public class Dikstra : MonoBehaviour
 {
@@ -16,8 +19,12 @@ public class Dikstra : MonoBehaviour
     private GameObject gridRootTextures;
     private GameObject MoveTexture;
     public int movingCount;
-
-
+    public int weaponRange;
+    GameObject rangeTexture;
+    Queue<GameObject> targetTextures;
+    Queue<GameObject> target2Textures;
+    private GameObject targetTexture;
+    private GameObject target2Texture;
 
 
     public bool isMoveReady; // 버튼을 클릭했는지 여부확인하는변수.
@@ -26,16 +33,21 @@ public class Dikstra : MonoBehaviour
     public bool playerMoving = false; // 플레이어의 이동중임을 체크하기위한 변수, coroutine이 여러번실행되는것을 방지
     private void Start()
     {
-        InitDikstra(15, 15, 4, Vector3.zero, "Obstacles");
+        InitDikstra(15, 15, 4, Vector3.zero);
         SetGrid();
+        CheckAllNodeWalkable();
+        SetRangeTexture();
+        SetTargetTexture();
     }
 
     // Dikstra 그리드 초기화하는 함수
-    public void InitDikstra(int x,int z,int cellSize, Vector3 originPosition, string layerName)
+    public void InitDikstra(int x,int z,int cellSize, Vector3 originPosition)
     {
         this.cellSize = cellSize;
         this.originPosition = originPosition;
-        unwalkableMask |= 1 << LayerMask.NameToLayer(layerName);
+        unwalkableMask |= 1 << LayerMask.NameToLayer("Obstacles");
+        unwalkableMask |= 1 << LayerMask.NameToLayer("Player");
+        unwalkableMask |= 1 << LayerMask.NameToLayer("Enemy");
         grid = new Node[x,z];
         gridTextures = new GameObject[x, z];
         playerMoveTextures = new GameObject[x,z];
@@ -227,12 +239,33 @@ public class Dikstra : MonoBehaviour
     public void CheckNodeWalkable(Node node)
     {
         RaycastHit hit;
-        if (Physics.Raycast(node.worldPosition + new Vector3(0,100,0), Vector3.down, out hit,Mathf.Infinity,unwalkableMask))
+        Vector3 nodePos = node.worldPosition + new Vector3 (cellSize/2, 50, cellSize/2);
+        if (Physics.Raycast(nodePos, Vector3.down, out hit,Mathf.Infinity,unwalkableMask))
         {
             node.walkable = false;
+
+            if(hit.collider.gameObject.layer == LayerMask.NameToLayer("Enemy"))
+            {
+                node.state = Node.State.Enemy;
+            }
+            if(hit.collider.gameObject.layer == LayerMask.NameToLayer("Player"))
+            {
+                node.state = Node.State.Player;
+            }
         }
     }
 
+    public void CheckAllNodeWalkable()
+    {
+        for(int i = 0; i< grid.GetLength(0); i++)
+        {
+            for(int j = 0; j< grid.GetLength(1); j++)
+            {
+                CheckNodeWalkable(grid[i,j]);
+            }
+        }
+    }
+    
     // 노드를 초기화(설치하는) 함수.
     public void SetGrid()
     {
@@ -314,9 +347,10 @@ public class Dikstra : MonoBehaviour
 
     #region 플레이어관련함수.
     //플레이어를 셋하는 함수
-    public void SetPlayer(Transform player, int movingCount)
+    public void SetPlayer(Transform player, int movingCount, int weaponRange)
     {
         this.player = player;
+        this.weaponRange = weaponRange;
         if (movePlayer == null)
         {
             this.movingCount = movingCount;
@@ -332,27 +366,47 @@ public class Dikstra : MonoBehaviour
         //플레이어 범위표시 그리드를 다 False로 초기화시켜주는함수
         MakeFalsePlayerGrid();
         MakeGridTextureFalse();
-
+        organism unit = player.gameObject.GetComponent<organism>();
+        unit.Move();
         playerMoving = true;
         foreach (Node node in path)
         {
             Vector3 centerPos = node.worldPosition + new Vector3(cellSize / 2, 0, cellSize / 2);
-
+            
+            Vector3 direction = centerPos - player.transform.position;
+            player.transform.rotation = Quaternion.LookRotation(direction);
             while (player.transform.position != centerPos)
             {
                 // 이동
                 player.transform.position = Vector3.MoveTowards(player.transform.position, centerPos, 10f * Time.deltaTime);
+                
+                
                 yield return null;
                 
             }
             movingCount--;
         }
+        unit.MoveStop();
         playerMoving = false;
-
-        if(movingCount<= 0)
-            isMoveReady = false;
+        isMoveReady = false;
         //이동을 끝낸 후 다시 범위표시 그리드를 True로 만들어주는 함수.
         PlayerGrid();
+        CheckAllNodeWalkable();
+        Vector3 enemyPos = CheckInPlayerAttackRange();
+        if (enemyPos != Vector3.zero)
+        {
+            Vector3 direction = enemyPos - player.position;
+            float rotationSpeed = 2f;
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            float elapsedTime = 0f;
+            while (elapsedTime < 0.5f)
+            {
+                player.rotation = Quaternion.Lerp(player.rotation, targetRotation, elapsedTime);
+                elapsedTime += Time.deltaTime * rotationSpeed;
+                yield return null;
+            }
+        }
+
     }
     public void MovePlayer()
     {
@@ -401,6 +455,114 @@ public class Dikstra : MonoBehaviour
         }
     }
     #endregion 플레이어 관련함수
+
+    //범위안에 있는지 체크하는 함수.
+    public bool CheckInPlayerRange(Vector3 position)
+    {
+        int monX =GetNodeFromWorldPoint(position).gridX;
+        int monY =GetNodeFromWorldPoint (position).gridY;
+        int playerX = GetNodeFromWorldPoint(player.transform.position).gridX;
+        int playerY = GetNodeFromWorldPoint(player.transform.position).gridY;
+
+        //사각형인경우
+        int minX = Mathf.Max(0, playerX - weaponRange);
+        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + weaponRange);
+        int minY = Mathf.Max(0, playerY - weaponRange);
+        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + weaponRange);
+
+        bool isInRange = true;
+        if((monX>=minX && monX<=maxX)&&(monY>=minY && monY<=maxY))
+        {
+        }
+        else
+        {
+            isInRange = false;
+        }
+
+        return isInRange;
+    }
+
+    public Vector3 CheckInPlayerAttackRange()
+    {
+        int playerX = GetNodeFromWorldPoint(player.transform.position).gridX;
+        int playerY = GetNodeFromWorldPoint(player.transform.position).gridY;
+
+        int minX = Mathf.Max(0, playerX - 1);
+        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + 1);
+        int minY = Mathf.Max(0, playerY - 1);
+        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + 1);
+
+
+        for(int i=minX; i<=maxX; i++)
+        {
+            for(int j=minY; j<maxY; j++)
+            {
+                if(grid[i,j].state == Node.State.monster)
+                {
+                    return grid[i, j].worldPosition;
+                }
+            }
+        }
+        return Vector3.zero;
+    }
+
+    public void SetRangeTexture()
+    {
+        Texture2D rangePrefab = Resources.Load<Texture2D>("Range");
+        rangeTexture = new GameObject("RangeTexture");
+        SpriteRenderer rangeRenderer = rangeTexture.AddComponent<SpriteRenderer>();
+        rangeRenderer.sprite = Sprite.Create(rangePrefab, new Rect(0, 0, rangePrefab.width, rangePrefab.height), Vector2.one * 0.5f);
+        rangeTexture.transform.rotation = Quaternion.Euler(new Vector3(90, 0, 0));
+        rangeTexture.transform.localScale = new Vector3(1f, 1f, 0);
+        rangeTexture.SetActive(false);
+    }
+    public void ActiveRangeTexture()
+    {
+        rangeTexture.SetActive(true);
+        rangeTexture.transform.position = player.position;
+    }
+
+    public void SetTargetTexture()
+    {
+        targetTextures = new Queue<GameObject>();
+        GameObject targetTexture = new GameObject("targetTextures");
+        Texture2D targetPrefab = Resources.Load<Texture2D>("Cross1");
+        GameObject texture = new GameObject("TargetTexture");
+        SpriteRenderer targetRenderer = texture.AddComponent<SpriteRenderer>();
+        targetRenderer.sprite = Sprite.Create(targetPrefab, new Rect(0, 0, targetPrefab.width, targetPrefab.height), Vector2.one * 0.5f);
+        targetTextures.Enqueue(texture);
+        texture.transform.SetParent(targetTexture.transform);
+        texture.transform.rotation = Quaternion.Euler(new Vector3(90, 0, 0));
+        texture.transform.localScale = new Vector3(1f, 1f, 0);
+        texture.SetActive(false);
+
+        target2Textures = new Queue<GameObject>();
+        GameObject targetTexture2 = new GameObject("targetTextures2");
+        Texture2D target2Prefab = Resources.Load<Texture2D>("Cross");
+        GameObject texture2 = new GameObject("Target2Texture");
+        SpriteRenderer target2Renderer = texture2.AddComponent<SpriteRenderer>();
+        target2Renderer.sprite = Sprite.Create(target2Prefab, new Rect(0, 0, target2Prefab.width, target2Prefab.height), Vector2.one * 0.5f);
+        target2Textures.Enqueue(texture2);
+        texture2.transform.SetParent(targetTexture2.transform);
+        texture2.transform.rotation = Quaternion.Euler(new Vector3(90, 0, 0));
+        texture2.transform.localScale = new Vector3(1f, 1f, 0);
+        texture2.SetActive(false);
+    }
+
+    public void ActiveTargetTexture(Vector3 position)
+    {
+        GameObject targetTexture = targetTextures.Dequeue();
+        targetTexture.SetActive(true);
+        targetTexture.transform.position = position;
+    }
+
+    public void ActiveTarget2Texture(Vector3 position)
+    {
+        GameObject target2Texture = target2Textures.Dequeue();
+        target2Texture.SetActive(true);
+        target2Texture.transform.position = position;
+    }
+    
 }
 
 
@@ -413,6 +575,8 @@ public class Node
     public int gridY; // 그리드 상의 y 인덱스
     public int gCost; // 시작 노드로부터의 거리
     public Node parent; // 경로 추적을 위한 부모 노드
+    public State state;
+    public enum State { Enemy, Player, Obstacle, Bin }// 몬스터가 해당노드에 있는지 여부.
 
     // 노드 생성자
     public Node(bool _walkable, Vector3 _worldPos, int _gridX, int _gridY)

@@ -23,6 +23,8 @@ public class TempPlayer : MonoBehaviour
         {
             Vector3 mousePos = dikstra.GetNodeFromWorldPoint(mouse.hitPoint).worldPosition; //mouse.hitPoint
             transform.position = new Vector3(mousePos.x + dikstra.cellSize / 2, mousePos.y, mousePos.z + dikstra.cellSize / 2);
+            BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
+            BattleSystem.BattleSystem1.ChangeState(BattleSystem.BattleSystem1.state);
         }
     }
 
