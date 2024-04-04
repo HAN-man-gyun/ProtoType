@@ -22,6 +22,8 @@ public class BattleSystem : MonoBehaviour
     }
 
     public bool isNormalAttack;
+    public bool isSkill1Attack;
+    public bool isSkill2Attack;
     public int skillCount;
     public BattleFSM fsm;
     State _curState;

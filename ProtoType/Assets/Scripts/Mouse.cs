@@ -32,7 +32,6 @@ public class Mouse : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Debug.Log(BattleSystem.BattleSystem1.state);
         RaycastHit hit;
         if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit))
         {
@@ -56,13 +55,13 @@ public class Mouse : MonoBehaviour
             {
                 Debug.Log("플레이어 지정완료");
                 BattleSystem.BattleSystem1.dikstra.MakeFalsePlayerGrid();
-                BattleSystem.BattleSystem1.dikstra.MakeGridTextureFalse();
+                BattleSystem.BattleSystem1.dikstra.MakeGridTextureFalse();BattleSystem.BattleSystem1.isNormalAttack = true;
                 BattleSystem.BattleSystem1.dikstra.isMoveReady = false;
                 
                 organism player = hit.collider.gameObject.GetComponent<organism>();
                 int movingCount = player.movingCount;
                 int weaponRange = player.weapon.skillRange;
-                BattleSystem.BattleSystem1.dikstra.SetPlayer(hit.collider.gameObject.transform, movingCount,weaponRange);
+                BattleSystem.BattleSystem1.dikstra.SetPlayer(hit.collider.gameObject.transform, movingCount);
             }
           
             if (hitTag == "Floor" && outOfGrid == false&& BattleSystem.BattleSystem1.dikstra.playerMoving == false && BattleSystem.BattleSystem1.dikstra.isMoveReady == true )
@@ -72,9 +71,9 @@ public class Mouse : MonoBehaviour
                 BattleSystem.BattleSystem1.dikstra.MovePlayer();
             }
 
-            if (isAttackReady1 && hitTag == "Enemy"&& BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isNormalAttack == false)
+            if (BattleSystem.BattleSystem1.state == BattleSystem.State.chooseTurn && isAttackReady1 && hitTag == "Enemy"&& BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isNormalAttack == false)
             {
-                Debug.Log("실행");
+                Debug.Log("일반공격실행");
                 organism organism = BattleSystem.BattleSystem1.dikstra.player.GetComponent<organism>();
                 organism.NormalAttack();
                 BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
@@ -82,20 +81,24 @@ public class Mouse : MonoBehaviour
                 BattleSystem.BattleSystem1.isNormalAttack = true;
             }
 
-            if (isAttackReady2 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position))
+            if (BattleSystem.BattleSystem1.state == BattleSystem.State.chooseTurn && isAttackReady2 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isSkill1Attack == false)
             {
+                Debug.Log("스킬1공격실행");
                 organism organism = BattleSystem.BattleSystem1.dikstra.player.GetComponent<organism>();
                 organism.SkillAttack1();
                 BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
                 BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
+                BattleSystem.BattleSystem1.isSkill1Attack = true;
             }
 
-            if(isAttackReady3 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position))
+            if(BattleSystem.BattleSystem1.state == BattleSystem.State.chooseTurn && isAttackReady3 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isSkill2Attack == false)
             {
+                Debug.Log("스킬2공격실행");
                 organism organism = BattleSystem.BattleSystem1.dikstra.player.GetComponent<organism>();
                 organism.SkillAttack2();
                 BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
                 BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
+                BattleSystem.BattleSystem1.isSkill2Attack = true;
             }
         }
     }
@@ -111,6 +114,7 @@ public class Mouse : MonoBehaviour
         BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.chooseTurn);
         isAttackReady1 = true;
         BattleSystem.BattleSystem1.dikstra.ActiveRangeTexture();
+        BattleSystem.BattleSystem1.dikstra.MakeTrueTargetTexture();
     }
     public void MakeReadySkill1()
     {
@@ -118,6 +122,7 @@ public class Mouse : MonoBehaviour
         BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.chooseTurn);
         isAttackReady2 = true;
         BattleSystem.BattleSystem1.dikstra.ActiveRangeTexture();
+        BattleSystem.BattleSystem1.dikstra.MakeTrueTargetTexture();
     }
 
     public void MakeReadySkill2()
@@ -126,6 +131,8 @@ public class Mouse : MonoBehaviour
         BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.chooseTurn);
         isAttackReady3 = true;
         BattleSystem.BattleSystem1.dikstra.ActiveRangeTexture();
+        BattleSystem.BattleSystem1.dikstra.MakeTrueTargetTexture();
+
     }
     public void CanMove()
     {
@@ -134,6 +141,7 @@ public class Mouse : MonoBehaviour
         {
             BattleSystem.BattleSystem1.dikstra.isMoveReady = true;
         }
+        BattleSystem.BattleSystem1.dikstra.PlayerGrid();
     } 
 
     public void PlayerEndTurn()
@@ -143,6 +151,9 @@ public class Mouse : MonoBehaviour
         BattleSystem.BattleSystem1.dikstra.isMoveReady = false; // 버튼을 클릭했는지 여부확인하는변수.
         BattleSystem.BattleSystem1.dikstra.movePlayer = null;
         BattleSystem.BattleSystem1.isNormalAttack = false;
+        isAttackReady1 = false;
+        isAttackReady2 = false;
+        isAttackReady3 = false;
     }
     public void CheckMouseInGrid(Vector3 mousePos)
     {

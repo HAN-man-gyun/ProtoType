@@ -13,9 +13,11 @@ public class AxeWarrior : MonoBehaviour, organism
     public string type { get; set; }
 
     public Animator axeAnimator;
+    public int attackRange { get; set; }
 
     private void Start()
     {
+        attackRange = 1;
         axeAnimator = GetComponent<Animator>();
         weapon = GetComponent<Axe>();
         movingCount = 10;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-interface organism
+public interface organism
 {
     int hp { get; set; }
     int movingCount { get; set; }
@@ -11,6 +11,8 @@ interface organism
     int shield { get; set; }
     string type { get; set; }
     Weapon weapon { get; set; }
+
+    int attackRange { get; set; }
     void Move();
     void MoveStop();
     void NormalAttack();

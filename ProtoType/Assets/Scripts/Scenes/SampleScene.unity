@@ -559,7 +559,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 483780, guid: 1edcd5ebd2af02e488f81ebb429e907b, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.9659258
       objectReference: {fileID: 0}
     - target: {fileID: 483780, guid: 1edcd5ebd2af02e488f81ebb429e907b, type: 3}
       propertyPath: m_LocalRotation.x
@@ -567,7 +567,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 483780, guid: 1edcd5ebd2af02e488f81ebb429e907b, type: 3}
       propertyPath: m_LocalRotation.y
-      value: 0
+      value: 0.2588191
       objectReference: {fileID: 0}
     - target: {fileID: 483780, guid: 1edcd5ebd2af02e488f81ebb429e907b, type: 3}
       propertyPath: m_LocalRotation.z
@@ -579,7 +579,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 483780, guid: 1edcd5ebd2af02e488f81ebb429e907b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 483780, guid: 1edcd5ebd2af02e488f81ebb429e907b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -2294,6 +2294,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   isNormalAttack: 0
+  isSkill1Attack: 0
+  isSkill2Attack: 0
   skillCount: 0
   dikstra: {fileID: 0}
   state: 0

@@ -19,20 +19,20 @@ public class Dikstra : MonoBehaviour
     private GameObject gridRootTextures;
     private GameObject MoveTexture;
     public int movingCount;
-    public int weaponRange;
     GameObject rangeTexture;
     Queue<GameObject> targetTextures;
     Queue<GameObject> target2Textures;
     private GameObject targetTexture;
     private GameObject target2Texture;
-
-
+    public organism unitOrganism;
+    private List <Vector3> enemyRangeList;
     public bool isMoveReady; // 버튼을 클릭했는지 여부확인하는변수.
     
     public Transform movePlayer; //한 플레이어가 움직이면 다른 플레이어는 못움직이게 하기위한변수.
     public bool playerMoving = false; // 플레이어의 이동중임을 체크하기위한 변수, coroutine이 여러번실행되는것을 방지
     private void Start()
     {
+        enemyRangeList = new List<Vector3>();
         InitDikstra(15, 15, 4, Vector3.zero);
         SetGrid();
         CheckAllNodeWalkable();
@@ -238,6 +238,7 @@ public class Dikstra : MonoBehaviour
     // 레이캐스트를 쏴서 어느 노드가 Walkable이 false인지확인하는 함수. 
     public void CheckNodeWalkable(Node node)
     {
+        node.state = Node.State.Bin;
         RaycastHit hit;
         Vector3 nodePos = node.worldPosition + new Vector3 (cellSize/2, 50, cellSize/2);
         if (Physics.Raycast(nodePos, Vector3.down, out hit,Mathf.Infinity,unwalkableMask))
@@ -251,6 +252,10 @@ public class Dikstra : MonoBehaviour
             if(hit.collider.gameObject.layer == LayerMask.NameToLayer("Player"))
             {
                 node.state = Node.State.Player;
+            }
+            if (hit.collider.gameObject.layer == LayerMask.NameToLayer("Obstacle"))
+            {
+                node.state = Node.State.Obstacle;
             }
         }
     }
@@ -277,19 +282,25 @@ public class Dikstra : MonoBehaviour
             {
                 grid[i, j] = new Node(true, originPosition + new Vector3(cellSize * j,0,(cellSize * i)), i, j);
                 CheckNodeWalkable(grid[i, j]);
+
+
+                //테스트용
                 Debug.DrawLine(GetWorldPosition(i, j), GetWorldPosition(i, j + 1), Color.blue, 100f);
                 Debug.DrawLine(GetWorldPosition(i, j), GetWorldPosition(i + 1, j), Color.blue, 100f);
-                //테스트용 노드 생성 코드
+                
                 GameObject prefab = Resources.Load<GameObject>("First");
                 GameObject newObject = GameObject.Instantiate(prefab);
                 newObject.transform.position = GetWorldPosition(i, j);
 
                 SetGridTexture(i, j, cellSize);
+                //테스트용
                 
             }
         }
+        //테스트용
         Debug.DrawLine(GetWorldPosition(0, grid.GetLength(1)), GetWorldPosition(grid.GetLength(0), grid.GetLength(1)), Color.blue, 100f); ;
         Debug.DrawLine(GetWorldPosition(grid.GetLength(0), 0), GetWorldPosition(grid.GetLength(0), grid.GetLength(1)), Color.blue, 100f);
+        //테스트용
     }
 
     #region 텍스쳐 함수
@@ -347,10 +358,10 @@ public class Dikstra : MonoBehaviour
 
     #region 플레이어관련함수.
     //플레이어를 셋하는 함수
-    public void SetPlayer(Transform player, int movingCount, int weaponRange)
+    public void SetPlayer(Transform player, int movingCount)
     {
+        unitOrganism = player.gameObject.GetComponent<organism>();
         this.player = player;
-        this.weaponRange = weaponRange;
         if (movePlayer == null)
         {
             this.movingCount = movingCount;
@@ -366,31 +377,44 @@ public class Dikstra : MonoBehaviour
         //플레이어 범위표시 그리드를 다 False로 초기화시켜주는함수
         MakeFalsePlayerGrid();
         MakeGridTextureFalse();
+        //플레이어가 움직이게 하는 코드.
         organism unit = player.gameObject.GetComponent<organism>();
         unit.Move();
         playerMoving = true;
-        foreach (Node node in path)
+
+        for (int i = 0; i < path.Count; i++)
         {
-            Vector3 centerPos = node.worldPosition + new Vector3(cellSize / 2, 0, cellSize / 2);
-            
+            Vector3 centerPos = path[i].worldPosition + new Vector3(cellSize / 2, 0, cellSize / 2);
+
             Vector3 direction = centerPos - player.transform.position;
             player.transform.rotation = Quaternion.LookRotation(direction);
             while (player.transform.position != centerPos)
             {
                 // 이동
                 player.transform.position = Vector3.MoveTowards(player.transform.position, centerPos, 10f * Time.deltaTime);
-                
-                
                 yield return null;
-                
             }
             movingCount--;
+            // 노드의 상태 바꾸기
+            if(i !=0)
+            {
+                // 0이 아닐때는 전의 것을 Bin으로 만들고 현재를 Player,로 만들면 된다.
+                path[i].state = Node.State.Player;
+                path[i-1].state = Node.State.Bin;
+            }
+            else
+            {
+                // 0일 때는 원래 플레이어의 위치를 Bin으로 만들고 움직일곳을 Player로 만든다.
+                GetNodeFromWorldPoint(player.position).state = Node.State.Bin;
+                path[i].state = Node.State.Player;
+            }
         }
+        
         unit.MoveStop();
         playerMoving = false;
         isMoveReady = false;
         //이동을 끝낸 후 다시 범위표시 그리드를 True로 만들어주는 함수.
-        PlayerGrid();
+        
         CheckAllNodeWalkable();
         Vector3 enemyPos = CheckInPlayerAttackRange();
         if (enemyPos != Vector3.zero)
@@ -464,15 +488,18 @@ public class Dikstra : MonoBehaviour
         int playerX = GetNodeFromWorldPoint(player.transform.position).gridX;
         int playerY = GetNodeFromWorldPoint(player.transform.position).gridY;
 
+
+
         //사각형인경우
-        int minX = Mathf.Max(0, playerX - weaponRange);
-        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + weaponRange);
-        int minY = Mathf.Max(0, playerY - weaponRange);
-        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + weaponRange);
+        int minX = Mathf.Max(0, playerX - unitOrganism.attackRange);
+        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + unitOrganism.attackRange);
+        int minY = Mathf.Max(0, playerY - unitOrganism.attackRange);
+        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + unitOrganism.attackRange);
 
         bool isInRange = true;
         if((monX>=minX && monX<=maxX)&&(monY>=minY && monY<=maxY))
         {
+            isInRange = true;
         }
         else
         {
@@ -487,23 +514,48 @@ public class Dikstra : MonoBehaviour
         int playerX = GetNodeFromWorldPoint(player.transform.position).gridX;
         int playerY = GetNodeFromWorldPoint(player.transform.position).gridY;
 
-        int minX = Mathf.Max(0, playerX - 1);
-        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + 1);
-        int minY = Mathf.Max(0, playerY - 1);
-        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + 1);
+        int minX = Mathf.Max(0, playerX - unitOrganism.attackRange);
+        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + unitOrganism.attackRange);
+        int minY = Mathf.Max(0, playerY - unitOrganism.attackRange);
+        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + unitOrganism.attackRange);
 
 
         for(int i=minX; i<=maxX; i++)
         {
             for(int j=minY; j<maxY; j++)
             {
-                if(grid[i,j].state == Node.State.monster)
+                if(grid[i,j].state == Node.State.Enemy)
                 {
                     return grid[i, j].worldPosition;
                 }
             }
         }
         return Vector3.zero;
+    }
+    public void MakeTrueTargetTexture() {
+        int playerX = GetNodeFromWorldPoint(player.transform.position).gridX;
+        int playerY = GetNodeFromWorldPoint(player.transform.position).gridY;
+
+        int minX = Mathf.Max(0, playerX - 1);
+        int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + 1);
+        int minY = Mathf.Max(0, playerY - 1);
+        int maxY = Mathf.Min(grid.GetLength(1) - 1, playerY + 1);
+
+        for (int i = minX; i <= maxX; i++)
+        {
+            for (int j = minY; j <= maxY; j++)
+            {
+                if (grid[i, j].state == Node.State.Enemy)
+                {
+                    enemyRangeList.Add(grid[i, j].worldPosition + new Vector3(cellSize/2, 0 , cellSize/2));
+                }
+            }
+        }
+
+        for (int i=0; i<enemyRangeList.Count; i++)
+        {
+            ActiveTargetTexture(enemyRangeList[i]);
+        }
     }
 
     public void SetRangeTexture()
@@ -551,6 +603,10 @@ public class Dikstra : MonoBehaviour
 
     public void ActiveTargetTexture(Vector3 position)
     {
+        if(targetTextures.Count ==0)
+        {
+            return;
+        }
         GameObject targetTexture = targetTextures.Dequeue();
         targetTexture.SetActive(true);
         targetTexture.transform.position = position;
@@ -558,11 +614,28 @@ public class Dikstra : MonoBehaviour
 
     public void ActiveTarget2Texture(Vector3 position)
     {
+        if (target2Textures.Count == 0)
+        {
+            return;
+        }
         GameObject target2Texture = target2Textures.Dequeue();
         target2Texture.SetActive(true);
         target2Texture.transform.position = position;
     }
     
+    public void AllTargetTextureMakeFalse()
+    {
+        foreach (var texture in targetTextures)
+        {
+           texture.SetActive(false);
+           targetTextures.Enqueue(texture);
+        }
+        foreach (var texture2 in target2Textures)
+        {
+            texture2.SetActive(false);
+            target2Textures.Enqueue(texture2);
+        }
+    }
 }
 
 
