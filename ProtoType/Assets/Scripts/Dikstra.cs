@@ -26,12 +26,14 @@ public class Dikstra : MonoBehaviour
     private GameObject target2Texture;
     public organism unitOrganism;
     private List <Vector3> enemyRangeList;
+    private List<GameObject> activeTargetList;
     public bool isMoveReady; // 버튼을 클릭했는지 여부확인하는변수.
     
     public Transform movePlayer; //한 플레이어가 움직이면 다른 플레이어는 못움직이게 하기위한변수.
     public bool playerMoving = false; // 플레이어의 이동중임을 체크하기위한 변수, coroutine이 여러번실행되는것을 방지
     private void Start()
     {
+        activeTargetList = new List<GameObject>();
         enemyRangeList = new List<Vector3>();
         InitDikstra(15, 15, 4, Vector3.zero);
         SetGrid();
@@ -216,8 +218,10 @@ public class Dikstra : MonoBehaviour
     // 월드포지션에서 노드[,]를 가져오는함수
     public Node GetNodeFromWorldPoint(Vector3 worldPosition)
     {
+
         int x = Mathf.FloorToInt((worldPosition - originPosition).x / cellSize);
         int y = Mathf.FloorToInt((worldPosition - originPosition).z / cellSize);
+       
         return grid[y, x];
     }
 
@@ -489,7 +493,6 @@ public class Dikstra : MonoBehaviour
         int playerY = GetNodeFromWorldPoint(player.transform.position).gridY;
 
 
-
         //사각형인경우
         int minX = Mathf.Max(0, playerX - unitOrganism.attackRange);
         int maxX = Mathf.Min(grid.GetLength(0) - 1, playerX + unitOrganism.attackRange);
@@ -573,7 +576,11 @@ public class Dikstra : MonoBehaviour
         rangeTexture.SetActive(true);
         rangeTexture.transform.position = player.position;
     }
-
+    public void InActiveRangeTexture()
+    {
+        rangeTexture.SetActive(false);
+        rangeTexture.transform.position = player.position;
+    }
     public void SetTargetTexture()
     {
         targetTextures = new Queue<GameObject>();
@@ -588,17 +595,6 @@ public class Dikstra : MonoBehaviour
         texture.transform.localScale = new Vector3(1f, 1f, 0);
         texture.SetActive(false);
 
-        target2Textures = new Queue<GameObject>();
-        GameObject targetTexture2 = new GameObject("targetTextures2");
-        Texture2D target2Prefab = Resources.Load<Texture2D>("Cross");
-        GameObject texture2 = new GameObject("Target2Texture");
-        SpriteRenderer target2Renderer = texture2.AddComponent<SpriteRenderer>();
-        target2Renderer.sprite = Sprite.Create(target2Prefab, new Rect(0, 0, target2Prefab.width, target2Prefab.height), Vector2.one * 0.5f);
-        target2Textures.Enqueue(texture2);
-        texture2.transform.SetParent(targetTexture2.transform);
-        texture2.transform.rotation = Quaternion.Euler(new Vector3(90, 0, 0));
-        texture2.transform.localScale = new Vector3(1f, 1f, 0);
-        texture2.SetActive(false);
     }
 
     public void ActiveTargetTexture(Vector3 position)
@@ -608,19 +604,36 @@ public class Dikstra : MonoBehaviour
             return;
         }
         GameObject targetTexture = targetTextures.Dequeue();
+        activeTargetList.Add(targetTexture);
         targetTexture.SetActive(true);
         targetTexture.transform.position = position;
     }
 
-    public void ActiveTarget2Texture(Vector3 position)
+    public void MakeTargetTextureRed(Vector3 pos)
     {
-        if (target2Textures.Count == 0)
+        for (int i = 0; i < activeTargetList.Count; i++)
         {
-            return;
+            if (GetNodeFromWorldPoint(activeTargetList[i].transform.position) == GetNodeFromWorldPoint(pos))
+            {
+                SpriteRenderer color = activeTargetList[i].gameObject.GetComponent<SpriteRenderer>();
+                color.color = Color.red;
+            }
+            else
+            {
+                SpriteRenderer color = activeTargetList[i].gameObject.GetComponent<SpriteRenderer>();
+                color.color = Color.white;
+            }
         }
-        GameObject target2Texture = target2Textures.Dequeue();
-        target2Texture.SetActive(true);
-        target2Texture.transform.position = position;
+    }
+    public void MakeTargetTextureFalse()
+    {
+        for(int i=0; i<activeTargetList.Count; i++)
+        {
+            SpriteRenderer color = activeTargetList[i].gameObject.GetComponent<SpriteRenderer>();
+            color.color = Color.white;
+            activeTargetList[i].gameObject.SetActive(false);
+            targetTextures.Enqueue(activeTargetList[i].gameObject);
+        }
     }
     
     public void AllTargetTextureMakeFalse()
@@ -629,11 +642,6 @@ public class Dikstra : MonoBehaviour
         {
            texture.SetActive(false);
            targetTextures.Enqueue(texture);
-        }
-        foreach (var texture2 in target2Textures)
-        {
-            texture2.SetActive(false);
-            target2Textures.Enqueue(texture2);
         }
     }
 }

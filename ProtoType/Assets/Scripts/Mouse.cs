@@ -32,6 +32,8 @@ public class Mouse : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        Debug.Log("normal Attack,여부" + BattleSystem.BattleSystem1.isNormalAttack);
+        Debug.Log(BattleSystem.BattleSystem1.state);
         RaycastHit hit;
         if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit))
         {
@@ -55,7 +57,7 @@ public class Mouse : MonoBehaviour
             {
                 Debug.Log("플레이어 지정완료");
                 BattleSystem.BattleSystem1.dikstra.MakeFalsePlayerGrid();
-                BattleSystem.BattleSystem1.dikstra.MakeGridTextureFalse();BattleSystem.BattleSystem1.isNormalAttack = true;
+                BattleSystem.BattleSystem1.dikstra.MakeGridTextureFalse();
                 BattleSystem.BattleSystem1.dikstra.isMoveReady = false;
                 
                 organism player = hit.collider.gameObject.GetComponent<organism>();
@@ -79,6 +81,9 @@ public class Mouse : MonoBehaviour
                 BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
                 BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
                 BattleSystem.BattleSystem1.isNormalAttack = true;
+
+                BattleSystem.BattleSystem1.dikstra.InActiveRangeTexture();
+                BattleSystem.BattleSystem1.dikstra.MakeTargetTextureFalse();
             }
 
             if (BattleSystem.BattleSystem1.state == BattleSystem.State.chooseTurn && isAttackReady2 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isSkill1Attack == false)
@@ -89,6 +94,8 @@ public class Mouse : MonoBehaviour
                 BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
                 BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
                 BattleSystem.BattleSystem1.isSkill1Attack = true;
+                BattleSystem.BattleSystem1.dikstra.InActiveRangeTexture();
+                BattleSystem.BattleSystem1.dikstra.MakeTargetTextureFalse();
             }
 
             if(BattleSystem.BattleSystem1.state == BattleSystem.State.chooseTurn && isAttackReady3 && hitTag == "Enemy" && BattleSystem.BattleSystem1.dikstra.CheckInPlayerRange(hit.collider.gameObject.transform.position) && BattleSystem.BattleSystem1.isSkill2Attack == false)
@@ -99,6 +106,8 @@ public class Mouse : MonoBehaviour
                 BattleSystem.BattleSystem1.state = BattleSystem.State.playerTurn;
                 BattleSystem.BattleSystem1.ChangeState(BattleSystem.State.playerTurn);
                 BattleSystem.BattleSystem1.isSkill2Attack = true;
+                BattleSystem.BattleSystem1.dikstra.InActiveRangeTexture();
+                BattleSystem.BattleSystem1.dikstra.MakeTargetTextureFalse();
             }
         }
     }

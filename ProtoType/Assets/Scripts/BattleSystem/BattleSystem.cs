@@ -36,7 +36,10 @@ public class BattleSystem : MonoBehaviour
 
     public State state;
     // Start is called before the first frame update
-
+    private void Update()    
+    {
+        fsm.UpdateState();
+    }
 
     private void Awake()
     {
@@ -60,6 +63,10 @@ public class BattleSystem : MonoBehaviour
         state = State.start;
         ChangeState(state);
         dikstra = dikstra = FindFirstObjectByType<Dikstra>();
+
+        isNormalAttack = false;
+        isSkill1Attack = false;
+        isSkill2Attack = false;
     }
 
     public void ChangeState(State nextState)
