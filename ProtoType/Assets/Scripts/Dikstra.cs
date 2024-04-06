@@ -5,6 +5,7 @@ using System;
 using Unity.VisualScripting;
 using static UnityEditor.Experimental.GraphView.GraphView;
 using UnityEditor.Experimental.GraphView;
+using UnityEngine.SocialPlatforms;
 
 public class Dikstra : MonoBehaviour
 {
@@ -644,6 +645,68 @@ public class Dikstra : MonoBehaviour
            targetTextures.Enqueue(texture);
         }
     }
+
+    public Node FindPlayerNodeWithinRange(Node rootNode, int range)
+    {
+        List<Node> findEndNodeList = new List<Node>();
+        int currentRange = 1;
+
+        // 반복문을 통해 탐색 범위를 점진적으로 확장
+        while (currentRange <= range)
+        {
+            // 현재 탐색 범위 내에서 노드를 탐색
+            Node foundNode = SearchNodesWithinRange(rootNode, currentRange, findEndNodeList);
+
+            // 원하는 노드를 찾았다면 반환
+            if (foundNode != null)
+            {
+                return foundNode;
+            }
+            // 원하는 노드를 찾지 못했다면 탐색 범위를 확장
+            currentRange++;
+        }
+
+        // 원하는 노드를 찾지 못한 경우
+        return null;
+    }
+
+    private Node SearchNodesWithinRange(Node rootNode, int range, List<Node> findEndNodeList)
+    {
+        int minX = Mathf.Max(0, rootNode.gridX - range);
+        int maxX = Mathf.Min(grid.GetLength(0) - 1, rootNode.gridX + range);
+        int minY = Mathf.Max(0, rootNode.gridY - range);
+        int maxY = Mathf.Min(grid.GetLength(1) - 1, rootNode.gridY + range);
+
+        List<Node> nodes = new List<Node>();
+        for(int i=minX; i<=maxX; i++)
+        {
+            for(int j=minY; j<=maxY; j++)
+            {
+                nodes.Add(grid[i, j]);
+            }
+        }
+        // 탐색 범위 내에서 노드를 순회하며 원하는 노드를 찾음
+        foreach (Node node in nodes)
+        {
+            if (findEndNodeList.Contains(node))
+            {
+                continue; // 이미 탐색한 노드이면 건너뜀
+            }
+            if (node.state == Node.State.Player)
+            {
+                return node;
+            }
+        }
+
+        foreach (Node node in nodes)
+        {
+            findEndNodeList.Add(node);
+        }
+
+        // 원하는 노드를 찾지 못한 경우
+        return null;
+    }
+
 }
 
 
